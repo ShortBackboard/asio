@@ -10,6 +10,8 @@ add_executable( asio )
 target_sources( asio 
     PRIVATE
         main.cpp
+        tcp-client.cpp
+        tcp-server.cpp
         
     PUBLIC
         
