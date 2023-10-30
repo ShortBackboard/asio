@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.26)
 
 project(asio LANGUAGES CXX)
 
+# 引入asio库
+find_package(Boost REQUIRED COMPONENTS system thread)
+
 add_executable( asio )
 
 target_sources( asio 
@@ -13,6 +16,12 @@ target_sources( asio
 )
 
 target_compile_features( asio PRIVATE cxx_std_20 )
+
+# 引入asio库
+target_link_libraries(asio PUBLIC
+    Boost::system
+    Boost::thread
+)
 
 # install(TARGETS asio
 #     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

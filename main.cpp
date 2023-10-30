@@ -1,22 +1,25 @@
 /*
- * 使用类成员函数作为完成处理程序函数，使计时器每秒触发一次
+ * 同步多线程程序中的完成处理程序，并行运行两个计时器
  *
- * 要使用asio实现重复计时器，您需要在完成处理程序中更改计时器的过期时间，然后启动新的异步等待
 */
 
 #include <iostream>
-#include <boost/asio.hpp>// 引入头文件
+#include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
+#include <boost/thread/thread.hpp>
 
 
 class Printer {
 public:
     // 构造函数
     Printer(boost::asio::io_context& io)
-        :m_timer(io, boost::asio::chrono::seconds(1)), m_count(0)
+        :m_strand(boost::asio::make_strand(io)), m_timer1(io, boost::asio::chrono::seconds(1)),
+        m_timer2(io, boost::asio::chrono::seconds(1)), m_count(0)
     {
         // 绑定
-        m_timer.async_wait(boost::bind(&Printer::print, this));
+        m_timer1.async_wait(boost::asio::bind_executor(m_strand, boost::bind(&Printer::print1, this)));
+        m_timer2.async_wait(boost::asio::bind_executor(m_strand, boost::bind(&Printer::print2, this)));
+
     }
 
     // 析构函数
@@ -25,20 +28,36 @@ public:
         std::cout << "Final count is " << m_count << std::endl;
     }
 
-    void print()
+    void print1()
     {
-        if(m_count < 5)
+        if(m_count < 10)
         {
-            std::cout << m_count << std::endl;
+            std::cout << "Timer1: " << m_count << std::endl;
             ++m_count;
 
-            m_timer.expires_at(m_timer.expiry() + boost::asio::chrono::seconds(1));
-            m_timer.async_wait(boost::bind(&Printer::print, this));
+            m_timer1.expires_at(m_timer1.expiry() + boost::asio::chrono::seconds(1));
+            m_timer1.async_wait(boost::asio::bind_executor(m_strand,
+                                                           boost::bind(&Printer::print1, this)));
+        }
+    }
+
+    void print2()
+    {
+        if(m_count < 10)
+        {
+            std::cout << "Timer2: " << m_count << std::endl;
+            ++m_count;
+
+            m_timer2.expires_at(m_timer2.expiry() + boost::asio::chrono::seconds(1));
+            m_timer2.async_wait(boost::asio::bind_executor(m_strand,
+                                                           boost::bind(&Printer::print2, this)));
         }
     }
 
 private:
-    boost::asio::steady_timer m_timer;
+    boost::asio::strand<boost::asio::io_context::executor_type> m_strand;
+    boost::asio::steady_timer m_timer1;
+    boost::asio::steady_timer m_timer2;
     int m_count;
 };
 
@@ -50,8 +69,11 @@ int main()
 
     Printer p(io);
 
-    // 最后，必须在io context对象上调用io context::run()成员函数。
+    boost::thread t(boost::bind(&boost::asio::io_context::run, &io));
+
     io.run();
+
+    t.join();
 
     return 0;
 }
