@@ -12,6 +12,9 @@ target_sources( asio
         main.cpp
         tcp-client.cpp
         tcp-server.cpp
+
+        udp-client.cpp
+        udp-server.cpp
         
     PUBLIC
         
